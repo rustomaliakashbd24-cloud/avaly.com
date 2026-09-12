@@ -4,7 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { PrismaClient, Prisma, UserRole } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { z } from "zod";
 
 const prisma = new PrismaClient();
@@ -14,14 +14,15 @@ app.use(cors({ origin: process.env.FRONTEND_URL?.split(",") ?? true }));
 app.use(express.json());
 
 const secret = process.env.JWT_SECRET || "dev-secret";
-type AuthReq = express.Request & { user?: { id: string; role: UserRole } };
+type Role = "USER" | "SELLER" | "ADMIN";
+type AuthReq = express.Request & { user?: { id: string; role: Role } };
 
-function auth(roles?: UserRole[]) {
+function auth(roles?: Role[]) {
   return async (req: AuthReq, res: express.Response, next: express.NextFunction) => {
     try {
       const token = req.headers.authorization?.replace("Bearer ", "");
       if (!token) return res.status(401).json({ message: "Authentication required" });
-      const payload = jwt.verify(token, secret) as { id: string; role: UserRole };
+      const payload = jwt.verify(token, secret) as { id: string; role: Role };
       if (roles && !roles.includes(payload.role)) return res.status(403).json({ message: "Forbidden" });
       req.user = payload; next();
     } catch { res.status(401).json({ message: "Invalid token" }); }
@@ -63,10 +64,10 @@ app.get("/api/products/:slug", async(req,res)=>{
   if(!p)return res.status(404).json({message:"Product not found"}); res.json(p);
 });
 
-app.post("/api/products",auth([UserRole.SELLER,UserRole.ADMIN]),async(req:AuthReq,res)=>{
+app.post("/api/products",auth(["SELLER","ADMIN"]),async(req:AuthReq,res)=>{
   const body=z.object({categoryId:z.string(),name:z.string().min(2),slug:z.string().min(2),description:z.string(),price:z.coerce.number().nonnegative(),compareAt:z.coerce.number().nonnegative().optional(),stock:z.coerce.number().int().nonnegative(),sku:z.string(),images:z.array(z.string()).default([])}).parse(req.body);
   let sellerId:string;
-  if(req.user!.role===UserRole.SELLER){const s=await prisma.seller.findUnique({where:{userId:req.user!.id}});if(!s)return res.status(400).json({message:"Seller profile missing"});sellerId=s.id}else{sellerId=String(req.body.sellerId)}
+  if(req.user!.role==="SELLER"){const s=await prisma.seller.findUnique({where:{userId:req.user!.id}});if(!s)return res.status(400).json({message:"Seller profile missing"});sellerId=s.id}else{sellerId=String(req.body.sellerId)}
   const p=await prisma.product.create({data:{...body,sellerId,price:new Prisma.Decimal(body.price),compareAt:body.compareAt?new Prisma.Decimal(body.compareAt):undefined,status:"ACTIVE",images:{create:body.images.map((url,i)=>({url,sortOrder:i}))}}});
   res.status(201).json(p);
 });
@@ -94,12 +95,12 @@ app.post("/api/orders",auth(),async(req:AuthReq,res)=>{
   res.status(201).json(order);
 });
 
-app.patch("/api/orders/:id/status",auth([UserRole.ADMIN]),async(req,res)=>{
+app.patch("/api/orders/:id/status",auth(["ADMIN"]),async(req,res)=>{
   const body=z.object({status:z.enum(["PENDING","CONFIRMED","PROCESSING","SHIPPED","DELIVERED","CANCELLED","RETURNED"])}).parse(req.body);
-  res.json(await prisma.order.update({where:{id:req.params.id},data:{status:body.status}}));
+  res.json(await prisma.order.update({where:{id:req.params.id},data:{status:body.status as any}}));
 });
 
-app.get("/api/admin/orders",auth([UserRole.ADMIN]),async(_req,res)=>res.json(await prisma.order.findMany({include:{user:{select:{name:true,email:true,phone:true}},items:true,payment:true,shipment:true},orderBy:{createdAt:"desc"}})));
+app.get("/api/admin/orders",auth(["ADMIN"]),async(_req,res)=>res.json(await prisma.order.findMany({include:{user:{select:{name:true,email:true,phone:true}},items:true,payment:true,shipment:true},orderBy:{createdAt:"desc"}})));
 
 app.post("/api/sellers/apply",auth(),async(req:AuthReq,res)=>{
   const body=z.object({shopName:z.string().min(2),slug:z.string().min(2)}).parse(req.body);
