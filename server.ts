@@ -34,7 +34,7 @@ app.post("/api/auth/register", async (req,res)=>{
   const body=z.object({name:z.string().min(2),email:z.string().email().optional(),phone:z.string().min(8).optional(),password:z.string().min(6)}).parse(req.body);
   const passwordHash=await bcrypt.hash(body.password,12);
   try {
-    const user=await prisma.user.create({data:{...body,passwordHash}});
+    const user=await prisma.user.create({data:{name:body.name,email:body.email,phone:body.phone,passwordHash}});
     const token=jwt.sign({id:user.id,role:user.role},secret,{expiresIn:"7d"});
     res.status(201).json({token,user:{id:user.id,name:user.name,email:user.email,phone:user.phone,role:user.role}});
   } catch { res.status(409).json({message:"Email or phone already exists"}); }
@@ -67,7 +67,7 @@ app.post("/api/products",auth([UserRole.SELLER,UserRole.ADMIN]),async(req:AuthRe
   const body=z.object({categoryId:z.string(),name:z.string().min(2),slug:z.string().min(2),description:z.string(),price:z.coerce.number().nonnegative(),compareAt:z.coerce.number().nonnegative().optional(),stock:z.coerce.number().int().nonnegative(),sku:z.string(),images:z.array(z.string()).default([])}).parse(req.body);
   let sellerId:string;
   if(req.user!.role===UserRole.SELLER){const s=await prisma.seller.findUnique({where:{userId:req.user!.id}});if(!s)return res.status(400).json({message:"Seller profile missing"});sellerId=s.id}else{sellerId=String(req.body.sellerId)}
-  const p=await prisma.product.create({data:{...body,sellerId,price:new Prisma.Decimal(body.price),compareAt:body.compareAt?new Prisma.Decimal(body.compareAt):undefined,status:"ACTIVE",images:{create:body.images.map((url,i)=>({url,sortOrder:i}))}}});
+  const p=await prisma.product.create({data:{categoryId:body.categoryId,name:body.name,slug:body.slug,description:body.description,sellerId,price:new Prisma.Decimal(body.price),compareAt:body.compareAt!==undefined?new Prisma.Decimal(body.compareAt):undefined,stock:body.stock,sku:body.sku,status:"ACTIVE",images:{create:body.images.map((url,i)=>({url,sortOrder:i}))}}});
   res.status(201).json(p);
 });
 
