@@ -7,14 +7,56 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole { CUSTOMER SELLER ADMIN }
-enum UserStatus { ACTIVE BLOCKED PENDING }
-enum ProductStatus { DRAFT ACTIVE INACTIVE OUT_OF_STOCK }
-enum OrderStatus { PENDING CONFIRMED PROCESSING SHIPPED DELIVERED CANCELLED RETURNED }
-enum PaymentStatus { PENDING PAID FAILED REFUNDED }
-enum PaymentMethod { COD BKASH NAGAD CARD }
-enum SellerStatus { PENDING APPROVED SUSPENDED }
-enum ShipmentStatus { PENDING PICKED_UP IN_TRANSIT OUT_FOR_DELIVERY DELIVERED RETURNED }
+enum UserRole {
+  CUSTOMER
+  SELLER
+  ADMIN
+}
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+  PENDING
+}
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  OUT_OF_STOCK
+}
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+enum PaymentMethod {
+  COD
+  BKASH
+  NAGAD
+  CARD
+}
+enum SellerStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+}
+enum ShipmentStatus {
+  PENDING
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  RETURNED
+}
 
 model User {
   id           String   @id @default(cuid())
